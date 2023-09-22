@@ -11,7 +11,7 @@ LICENSE file in the root directory of this source tree.
 #include <string>
 #include <vector>
 
-#include "astra-sim/system/AstraMemoryAPI.hh"
+#include "astra-sim/system/AstraRemoteMemoryAPI.hh"
 #include "astra-sim/system/Callable.hh"
 #include "astra-sim/system/Sys.hh"
 
@@ -35,22 +35,18 @@ class PendingMemoryRequest {
   AstraSim::WorkloadLayerHandlerData* wlhd;
 };
 
-class AnalyticalMemory : public AstraSim::AstraMemoryAPI, public AstraSim::Callable{
+class AnalyticalRemoteMemory : public AstraSim::AstraRemoteMemoryAPI, public AstraSim::Callable{
  public:
-  AnalyticalMemory(std::string memory_configuration) noexcept;
+  AnalyticalRemoteMemory(std::string memory_configuration) noexcept;
   void set_sys(int id, AstraSim::Sys* sys);
   void issue(
-      AstraSim::TensorLocationType tensor_loc,
       uint64_t tensor_size,
       AstraSim::WorkloadLayerHandlerData* wlhd);
   void call(AstraSim::EventType type, AstraSim::CallData* data);
-  uint64_t get_local_mem_runtime(uint64_t tensor_size);
   uint64_t get_remote_mem_runtime(uint64_t tensor_size);
 
  private:
   MemoryArchitectureType mem_type;
-  uint64_t local_mem_latency;
-  uint64_t local_mem_bw;
   uint64_t remote_mem_latency;
   uint64_t remote_mem_bw;
   std::vector<bool> ongoing_transaction;
