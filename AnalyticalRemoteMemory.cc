@@ -4,20 +4,19 @@ the root directory of this source tree.
  *******************************************************************************/
 
 #include "extern/remote_memory_backend/analytical/AnalyticalRemoteMemory.hh"
-
+#include <json/json.hpp>
 #include <fstream>
 #include <iostream>
-
 #include "astra-sim/system/Common.hh"
 #include "astra-sim/system/WorkloadLayerHandlerData.hh"
-#include "astra-sim/json.hpp"
 
 using namespace std;
 using namespace AstraSim;
 using namespace Analytical;
 using json = nlohmann::json;
 
-AnalyticalRemoteMemory::AnalyticalRemoteMemory(string memory_configuration) noexcept {
+AnalyticalRemoteMemory::AnalyticalRemoteMemory(
+    string memory_configuration) noexcept {
   ifstream conf_file;
 
   conf_file.open(memory_configuration);
@@ -92,7 +91,8 @@ void AnalyticalRemoteMemory::issue(
   int sys_id = wlhd->sys_id;
 
   if (mem_type == NO_MEMORY_EXPANSION) {
-    cerr << "Remote memory access is not supported in NO_MEMORY_EXPANSION" << endl;
+    cerr << "Remote memory access is not supported in NO_MEMORY_EXPANSION"
+         << endl;
     exit(1);
   } else if (mem_type == PER_NODE_MEMORY_EXPANSION) {
     int nid = sys_id / num_npus_per_node;
@@ -103,28 +103,16 @@ void AnalyticalRemoteMemory::issue(
       uint64_t runtime = get_remote_mem_runtime(tensor_size);
 
       Sys* sys = sys_map[sys_id];
-      sys->register_event(
-          wlhd->workload,
-          EventType::General,
-          wlhd,
-          runtime);
+      sys->register_event(wlhd->workload, EventType::General, wlhd, runtime);
 
-      sys->register_event(
-          this,
-          EventType::General,
-          wlhd,
-          runtime);
+      sys->register_event(this, EventType::General, wlhd, runtime);
 
       ongoing_transaction[nid] = true;
     }
   } else if (mem_type == PER_NPU_MEMORY_EXPANSION) {
     uint64_t runtime = get_remote_mem_runtime(tensor_size);
     Sys* sys = sys_map[sys_id];
-    sys->register_event(
-        wlhd->workload,
-        EventType::General,
-        wlhd,
-        runtime);
+    sys->register_event(wlhd->workload, EventType::General, wlhd, runtime);
   } else if (mem_type == MEMORY_POOL) {
     if (ongoing_transaction[0]) {
       PendingMemoryRequest pmr(tensor_size, wlhd);
@@ -133,17 +121,9 @@ void AnalyticalRemoteMemory::issue(
       uint64_t runtime = get_remote_mem_runtime(tensor_size);
 
       Sys* sys = sys_map[sys_id];
-      sys->register_event(
-          wlhd->workload,
-          EventType::General,
-          wlhd,
-          runtime);
+      sys->register_event(wlhd->workload, EventType::General, wlhd, runtime);
 
-      sys->register_event(
-          this,
-          EventType::General,
-          wlhd,
-          runtime);
+      sys->register_event(this, EventType::General, wlhd, runtime);
 
       ongoing_transaction[0] = true;
     }
@@ -162,16 +142,9 @@ void AnalyticalRemoteMemory::call(EventType type, CallData* data) {
 
       Sys* sys = sys_map[pmr.wlhd->sys_id];
       sys->register_event(
-          pmr.wlhd->workload,
-          EventType::General,
-          pmr.wlhd,
-          runtime);
+          pmr.wlhd->workload, EventType::General, pmr.wlhd, runtime);
 
-      sys->register_event(
-          this,
-          EventType::General,
-          pmr.wlhd,
-          runtime);
+      sys->register_event(this, EventType::General, pmr.wlhd, runtime);
 
       ongoing_transaction[nid] = true;
     } else {
@@ -186,16 +159,9 @@ void AnalyticalRemoteMemory::call(EventType type, CallData* data) {
 
       Sys* sys = sys_map[pmr.wlhd->sys_id];
       sys->register_event(
-          pmr.wlhd->workload,
-          EventType::General,
-          pmr.wlhd,
-          runtime);
+          pmr.wlhd->workload, EventType::General, pmr.wlhd, runtime);
 
-      sys->register_event(
-          this,
-          EventType::General,
-          pmr.wlhd,
-          runtime);
+      sys->register_event(this, EventType::General, pmr.wlhd, runtime);
 
       ongoing_transaction[0] = true;
     } else {
@@ -205,9 +171,9 @@ void AnalyticalRemoteMemory::call(EventType type, CallData* data) {
 }
 
 uint64_t AnalyticalRemoteMemory::get_remote_mem_runtime(uint64_t tensor_size) {
-  uint64_t runtime = remote_mem_latency
-    + static_cast<uint64_t>(
-        (static_cast<double>(tensor_size) / remote_mem_bw)
-        * static_cast<double>(FREQ));
+  uint64_t runtime = remote_mem_latency +
+      static_cast<uint64_t>(
+                         (static_cast<double>(tensor_size) / remote_mem_bw) *
+                         static_cast<double>(FREQ));
   return runtime;
 }
