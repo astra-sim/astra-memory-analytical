@@ -15,6 +15,8 @@ LICENSE file in the root directory of this source tree.
 #include "astra-sim/system/Callable.hh"
 #include "astra-sim/system/Sys.hh"
 
+#include "extern/statistics/GStatsIoActivity.hh"
+
 namespace Analytical {
 enum MemoryArchitectureType {
   NO_MEMORY_EXPANSION = 0,
@@ -44,6 +46,9 @@ class AnalyticalRemoteMemory : public AstraSim::AstraRemoteMemoryAPI, public Ast
       AstraSim::WorkloadLayerHandlerData* wlhd);
   void call(AstraSim::EventType type, AstraSim::CallData* data);
   uint64_t get_remote_mem_runtime(uint64_t tensor_size);
+
+  static GStatsIoActivity memIoActivity;
+  std::pair<Time_t, Time_t> activityBlock;
 
  private:
   MemoryArchitectureType mem_type;

@@ -12,6 +12,9 @@ the root directory of this source tree.
 #include "astra-sim/system/WorkloadLayerHandlerData.hh"
 #include "astra-sim/json.hpp"
 
+GStatsIoActivity Analytical::AnalyticalRemoteMemory::memIoActivity("mem_io_activity");
+
+
 using namespace std;
 using namespace AstraSim;
 using namespace Analytical;
@@ -64,7 +67,8 @@ AnalyticalRemoteMemory::AnalyticalRemoteMemory(string memory_configuration) noex
   remote_mem_bw = 0;
   if (j.contains("remote-mem-bw")) {
     remote_mem_bw = j["remote-mem-bw"];
-    remote_mem_bw = remote_mem_bw * 1000000000; // GB/sec
+    //remote_mem_bw = remote_mem_bw * 1000000000; // GB/sec
+    remote_mem_bw = remote_mem_bw + 0; // GB/sec or B/ns
   }
 
   if (mem_type == PER_NODE_MEMORY_EXPANSION) {
@@ -90,17 +94,19 @@ void AnalyticalRemoteMemory::issue(
     uint64_t tensor_size,
     WorkloadLayerHandlerData* wlhd) {
   int sys_id = wlhd->sys_id;
+  uint64_t runtime = 0;
 
   if (mem_type == NO_MEMORY_EXPANSION) {
     cerr << "Remote memory access is not supported in NO_MEMORY_EXPANSION" << endl;
     exit(1);
-  } else if (mem_type == PER_NODE_MEMORY_EXPANSION) {
+  }
+  else if (mem_type == PER_NODE_MEMORY_EXPANSION) {
     int nid = sys_id / num_npus_per_node;
     if (ongoing_transaction[nid]) {
       PendingMemoryRequest pmr(tensor_size, wlhd);
       pending_requests[nid].push_back(pmr);
     } else {
-      uint64_t runtime = get_remote_mem_runtime(tensor_size);
+      runtime = get_remote_mem_runtime(tensor_size);
 
       Sys* sys = sys_map[sys_id];
       sys->register_event(
@@ -117,20 +123,23 @@ void AnalyticalRemoteMemory::issue(
 
       ongoing_transaction[nid] = true;
     }
-  } else if (mem_type == PER_NPU_MEMORY_EXPANSION) {
-    uint64_t runtime = get_remote_mem_runtime(tensor_size);
+  }
+  else if (mem_type == PER_NPU_MEMORY_EXPANSION) {
+    runtime = get_remote_mem_runtime(tensor_size);
     Sys* sys = sys_map[sys_id];
     sys->register_event(
         wlhd->workload,
         EventType::General,
         wlhd,
         runtime);
-  } else if (mem_type == MEMORY_POOL) {
+  }
+  else if (mem_type == MEMORY_POOL) {
     if (ongoing_transaction[0]) {
       PendingMemoryRequest pmr(tensor_size, wlhd);
       pending_requests[0].push_back(pmr);
-    } else {
-      uint64_t runtime = get_remote_mem_runtime(tensor_size);
+    }
+    else {
+      runtime = get_remote_mem_runtime(tensor_size);
 
       Sys* sys = sys_map[sys_id];
       sys->register_event(
@@ -148,7 +157,22 @@ void AnalyticalRemoteMemory::issue(
       ongoing_transaction[0] = true;
     }
   }
+
+  // Record the activty here for both read and write
+  auto event_time = sys_map[sys_id]->comm_NI->sim_get_time();
+  activityBlock.first=event_time;
+  activityBlock.second=event_time;
+  activityBlock.second.time_val += runtime;
+
+  // record the egress io ioActivity for sender.
+  std::string key = "sys_"+std::to_string(sys_id);
+  memIoActivity.recordEntry(key,activityBlock);
+
+  // Reset the activityBlock;
+  activityBlock.first.time_val=-1;
+  activityBlock.second.time_val=-1;
 }
+
 
 void AnalyticalRemoteMemory::call(EventType type, CallData* data) {
   if (mem_type == PER_NODE_MEMORY_EXPANSION) {
@@ -206,8 +230,17 @@ void AnalyticalRemoteMemory::call(EventType type, CallData* data) {
 
 uint64_t AnalyticalRemoteMemory::get_remote_mem_runtime(uint64_t tensor_size) {
   uint64_t runtime = remote_mem_latency
+                     + static_cast<uint64_t>(
+                         (static_cast<double>(tensor_size) / remote_mem_bw));
+  return runtime;
+}
+
+/*
+uint64_t AnalyticalRemoteMemory::get_remote_mem_runtime(uint64_t tensor_size) {
+  uint64_t runtime = remote_mem_latency
     + static_cast<uint64_t>(
         (static_cast<double>(tensor_size) / remote_mem_bw)
         * static_cast<double>(FREQ));
   return runtime;
 }
+*/
