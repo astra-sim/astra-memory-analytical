@@ -63,7 +63,6 @@ AnalyticalRemoteMemory::AnalyticalRemoteMemory(
   remote_mem_bw = 0;
   if (j.contains("remote-mem-bw")) {
     remote_mem_bw = j["remote-mem-bw"];
-    remote_mem_bw = remote_mem_bw * 1000000000; // GB/sec
   }
 
   if (mem_type == PER_NODE_MEMORY_EXPANSION) {
@@ -171,9 +170,7 @@ void AnalyticalRemoteMemory::call(EventType type, CallData* data) {
 }
 
 uint64_t AnalyticalRemoteMemory::get_remote_mem_runtime(uint64_t tensor_size) {
-  uint64_t runtime = remote_mem_latency +
-      static_cast<uint64_t>(
-                         (static_cast<double>(tensor_size) / remote_mem_bw) *
-                         static_cast<double>(FREQ));
+  uint64_t runtime = remote_mem_latency
+      + static_cast<uint64_t>((static_cast<double>(tensor_size) / remote_mem_bw));
   return runtime;
 }

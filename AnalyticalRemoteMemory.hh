@@ -47,8 +47,8 @@ class AnalyticalRemoteMemory : public AstraSim::AstraRemoteMemoryAPI, public Ast
 
  private:
   MemoryArchitectureType mem_type;
-  uint64_t remote_mem_latency;
-  uint64_t remote_mem_bw;
+  uint64_t remote_mem_latency; // remote memory access latency in nanosec
+  uint64_t remote_mem_bw; // remote memory bandwidth in GB/sec
   std::vector<bool> ongoing_transaction;
 
   // per-node memory expansion
