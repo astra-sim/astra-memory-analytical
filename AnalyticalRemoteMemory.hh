@@ -11,7 +11,7 @@ LICENSE file in the root directory of this source tree.
 #include <string>
 #include <vector>
 
-#include "astra-sim/system/AstraRemoteMemoryAPI.hh"
+#include "astra-sim/common/AstraRemoteMemoryAPI.hh"
 #include "astra-sim/system/Callable.hh"
 #include "astra-sim/system/Sys.hh"
 
